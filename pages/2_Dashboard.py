@@ -5,12 +5,13 @@ import io
 import datetime
 
 import streamlit as st
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from dotenv import load_dotenv
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 
 from database import SessionLocal
 import models
@@ -18,7 +19,7 @@ import models
 load_dotenv(override=True)
 
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 PLOT_CONFIG = {
     "displayModeBar": False,
     "responsive": True,
@@ -213,6 +214,35 @@ if publicadores_sel:
     df_filtrado = df_filtrado_grupo[df_filtrado_grupo["Publicador"].isin(publicadores_sel)]
 else:
     df_filtrado = df_filtrado_grupo
+
+# --- ORDEN PERSONALIZADO SEGÚN LA FOTO DEL USUARIO ---
+orden_publicadores = [
+    "Delis Requena",
+    "Esteban Requena",
+    "David Requena",
+    "Erosilda Arbelaez",
+    "Anderson Melendez (Aux.)",
+    "Lina Sanchez",
+    "Teonilda Porto",
+    "Diana Maestre",
+    "Yenfer Ojeda (S. de grupo)",
+    "Yolmarys Ojeda",
+    "Mario Arbelaez",
+    "Zenaida Jimenez",
+    "Ender Requena",
+    "Jose Arbelaez",
+    "Elizandrit Rebolledo"
+]
+
+if not df_filtrado.empty:
+    def get_sort_index(val):
+        try:
+            return orden_publicadores.index(val)
+        except ValueError:
+            return len(orden_publicadores)
+    df_filtrado = df_filtrado.copy()
+    df_filtrado["sort_idx"] = df_filtrado["Publicador"].apply(get_sort_index)
+    df_filtrado = df_filtrado.sort_values(by=["sort_idx", "Publicador"]).drop(columns=["sort_idx"])
 
 # Etiqueta dinámica
 if meses_seleccionados:
@@ -660,7 +690,7 @@ df_export.loc[inactivos_mask, "Cursos biblicos"] = ""
 
 # Guardar en buffer usando el motor de openpyxl
 with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-    # Escribir el DataFrame desde B2 directamente (sin fila de título extra)
+    # Escribir el DataFrame desde A2 (startrow=1, startcol=0)
     df_export.to_excel(writer, index=False, sheet_name='Informes', startrow=1, startcol=0)
 
     workbook = writer.book
@@ -682,35 +712,33 @@ with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
     fill_header  = PatternFill(start_color='1E3A5F', end_color='1E3A5F', fill_type='solid')
     fill_par     = PatternFill(start_color='EBF3FF', end_color='EBF3FF', fill_type='solid')
     fill_impar   = PatternFill(start_color='FFFFFF', end_color='FFFFFF', fill_type='solid')
-    font_header  = Font(name='Calibri', size=12, bold=True, color='FFFFFF')
-    font_data    = Font(name='Calibri', size=11, color='1A1A2E')
+    font_header  = Font(name='Calibri', size=11, bold=True, color='FFFFFF')
+    font_data    = Font(name='Calibri', size=10, color='1A1A2E')
 
-    # --- Columnas y anchos (A=Nombre, B=Privilegio, C=Mes, D=Informe, E=Cursos) ---
-    col_widths = [32, 36, 12, 45, 14]
-    for col_idx, width in enumerate(col_widths, start=1):
-        col_letter = worksheet.cell(row=1, column=col_idx).column_letter
-        worksheet.column_dimensions[col_letter].width = width
-
-    # --- Título en fila 1 (antes de los datos — usamos merge sobre toda la tabla) ---
+    # --- Configurar todas las columnas con el mismo tamaño (Ancho: 22) ---
     num_cols = len(df_export.columns)
+    for col_idx in range(1, num_cols + 1):
+        col_letter = worksheet.cell(row=2, column=col_idx).column_letter
+        worksheet.column_dimensions[col_letter].width = 22
+
+    # --- Título en fila 1 ---
     titulo_texto = f"Grupo {grupo_sel}" if grupo_sel != "Todos" else f"Reporte General — {filtro_label}"
-    # Mover los datos una fila más abajo insertando fila vacía al inicio
-    worksheet.insert_rows(1)
-    last_col_letter = worksheet.cell(row=1, column=num_cols).column_letter
+    last_col_letter = worksheet.cell(row=2, column=num_cols).column_letter
     worksheet.merge_cells(f'A1:{last_col_letter}1')
     titulo_cell = worksheet['A1']
     titulo_cell.value = titulo_texto
     titulo_cell.fill = PatternFill(start_color='1E3A5F', end_color='1E3A5F', fill_type='solid')
-    titulo_cell.font = Font(name='Calibri', size=20, bold=True, color='FFFFFF')
+    titulo_cell.font = Font(name='Calibri', size=14, bold=True, color='FFFFFF')
     titulo_cell.alignment = Alignment(horizontal='center', vertical='center')
-    worksheet.row_dimensions[1].height = 38
+    worksheet.row_dimensions[1].height = 32
 
-    # --- Encabezados (ahora fila 2) y datos (fila 3 en adelante) ---
+    # --- Encabezados (fila 2) y datos (fila 3 en adelante) ---
     num_filas = len(df_export)
     header_row = 2
     data_start = 3
 
     for r_idx in range(header_row, data_start + num_filas):
+        worksheet.row_dimensions[r_idx].height = 20 if r_idx >= data_start else 24
         for c_idx in range(1, num_cols + 1):
             cell = worksheet.cell(row=r_idx, column=c_idx)
             if r_idx == header_row:
@@ -718,21 +746,15 @@ with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                 cell.fill = fill_header
                 cell.border = borde_grueso_ext
                 cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                worksheet.row_dimensions[r_idx].height = 28
             else:
                 es_par = (r_idx - data_start) % 2 == 0
                 cell.fill = fill_par if es_par else fill_impar
                 cell.font = font_data
                 cell.border = borde_fino
-                # Columna Informe (índice 4 = D) → wrap_text
-                if c_idx == 4:
-                    cell.alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
-                    worksheet.row_dimensions[r_idx].height = 38
+                if c_idx == 4: # Informe (columna D)
+                    cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
                 else:
                     cell.alignment = Alignment(horizontal='center', vertical='center')
-                    worksheet.row_dimensions[r_idx].height = max(
-                        worksheet.row_dimensions[r_idx].height or 20, 20
-                    )
 
     # --- Filtros automáticos sobre la fila de encabezados ---
     last_data_letter = worksheet.cell(row=header_row, column=num_cols).column_letter

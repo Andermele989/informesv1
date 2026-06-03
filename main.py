@@ -1,13 +1,22 @@
-# pyrefly: ignore [missing-import]
 import streamlit as st
-from database import SessionLocal
+st.set_page_config(
+    page_title="Sistema de Informes",
+    page_icon="📋",
+    layout="wide"
+)
+from database import SessionLocal, Base, engine
 import models
-# pyrefly: ignore [missing-import]
 from sqlalchemy import text
 import datetime
 
-st.set_page_config(page_title="Sistema de Informes", page_icon="📋", layout="wide")
 
+
+# 🔥 Crear tablas SOLO UNA VEZ
+if "db_initialized" not in st.session_state:
+    Base.metadata.create_all(bind=engine)
+    st.session_state.db_initialized = True
+
+# ========================= SESSION =========================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
