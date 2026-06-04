@@ -674,8 +674,12 @@ df_export.columns = ["Nombre y apellido", "Privilegio (publicador, precursor, et
 
 # Lógica para Inactivos: dejar celdas en blanco en vez de valores por defecto
 inactivos_mask = df_export["Privilegio (publicador, precursor, etc.)"].str.lower() == "inactivo"
+df_export["Mes"] = df_export["Mes"].astype(object)
+df_export["Informe"] = df_export["Informe"].astype(object)
 df_export["Cursos biblicos"] = df_export["Cursos biblicos"].astype(object)
-df_export.loc[inactivos_mask, ["Mes", "Informe", "Cursos biblicos"]] = ""
+df_export.loc[inactivos_mask, "Mes"] = ""
+df_export.loc[inactivos_mask, "Informe"] = ""
+df_export.loc[inactivos_mask, "Cursos biblicos"] = ""
 
 # Lógica para Cursos Bíblicos: si es 0, dejarlo vacío (como en la imagen de Excel original)
 def clean_cursos(x):
