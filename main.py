@@ -13,8 +13,20 @@ import datetime
 
 # 🔥 Crear tablas SOLO UNA VEZ
 if "db_initialized" not in st.session_state:
-    Base.metadata.create_all(bind=engine)
-    st.session_state.db_initialized = True
+    try:
+        from models import User, Publisher, MonthlyReport, Privilege, Group
+        Base.metadata.create_all(bind=engine)
+        db = SessionLocal()
+        admin = db.query(User).filter(User.username == "admin").first()
+        if not admin:
+            new_admin = User(username="admin", password_hash="admin", role="admin")
+            db.add(new_admin)
+            db.commit()
+        db.close()
+        st.session_state.db_initialized = True
+    except Exception as e:
+        st.error(f"❌ Error inicializando BD: {e}")
+        st.stop()
 
 # ========================= SESSION =========================
 if "logged_in" not in st.session_state:
