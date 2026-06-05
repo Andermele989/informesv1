@@ -11,8 +11,8 @@ import datetime
 
 
 
-# 🔥 Crear tablas SOLO UNA VEZ
-if "db_initialized" not in st.session_state:
+# 🔥 Crear tablas SOLO UNA VEZ a nivel global del proceso
+if not getattr(st, "_db_initialized_global", False):
     try:
         from models import User, Publisher, MonthlyReport, Privilege, Group
         Base.metadata.create_all(bind=engine)
@@ -23,17 +23,21 @@ if "db_initialized" not in st.session_state:
             db.add(new_admin)
             db.commit()
         db.close()
-        st.session_state.db_initialized = True
+        st._db_initialized_global = True
     except Exception as e:
         st.error(f"❌ Error inicializando BD: {e}")
         st.stop()
 
 # ========================= SESSION =========================
+from auth_helper import check_session_cookie_or_localstorage
+check_session_cookie_or_localstorage()
+
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.role = ""
     st.session_state.user_id = None
+    st.session_state.logged_out = False
 
 def check_db_connection():
     try:
@@ -95,6 +99,7 @@ def login():
                 st.session_state.username = user.username
                 st.session_state.role = user.role
                 st.session_state.user_id = user.id
+                st.session_state.logged_out = False
                 st.rerun()
             else:
                 st.error("❌ Usuario o contraseña incorrectos")
@@ -102,18 +107,15 @@ def login():
 
 
 def logout():
+    st.session_state.logged_out = True
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.role = ""
     st.session_state.user_id = None
+    st.query_params.clear()
     st.rerun()
 
 def show_home():
-    st.sidebar.title(f"👤 {st.session_state.username}")
-    st.sidebar.caption(f"Rol: {'Administrador' if st.session_state.role == 'admin' else 'Usuario'}")
-    if st.sidebar.button("🚪 Cerrar Sesión", use_container_width=True):
-        logout()
-
     st.title("Sistema Automático de Informes Mensuales 📊")
 
     # Show quick summary for admin
@@ -144,92 +146,37 @@ def show_home():
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("""
+    import urllib.parse
+    q_dict = {k: st.query_params[k] for k in st.query_params}
+    query_str = "?" + urllib.parse.urlencode(q_dict) if q_dict else ""
+
+    st.markdown(f"""
     <div class="welcome-grid">
-        <div class="welcome-card nav-card" data-href="/1_Registro">
+        <a class="welcome-card nav-card" href="/Registro{query_str}" target="_self" style="text-decoration: none; color: inherit; display: block;">
             <div class="card-emoji">📝</div>
             <h3>Registro de Informe</h3>
             <p>Registra el informe mensual de los publicadores del grupo. Selecciona el mes, el publicador y su actividad del mes.</p>
-            <div class="nav-hint">Doble toque para abrir →</div>
-        </div>
-        <div class="welcome-card nav-card" data-href="/2_Dashboard">
+            <div class="nav-hint">Haz clic para abrir →</div>
+        </a>
+        <a class="welcome-card nav-card" href="/Dashboard{query_str}" target="_self" style="text-decoration: none; color: inherit; display: block;">
             <div class="card-emoji">📈</div>
             <h3>Dashboard y Análisis</h3>
             <p>Visualiza estadísticas, gráficos de rendimiento, exporta a Excel y utiliza la IA para generar insights automáticos.</p>
-            <div class="nav-hint">Doble toque para abrir →</div>
-        </div>
-        <div class="welcome-card nav-card" data-href="/3_Admin_Privilegios">
+            <div class="nav-hint">Haz clic para abrir →</div>
+        </a>
+        <a class="welcome-card nav-card" href="/Admin_Privilegios{query_str}" target="_self" style="text-decoration: none; color: inherit; display: block;">
             <div class="card-emoji">🛡️</div>
             <h3>Administración</h3>
             <p>Gestiona los privilegios disponibles, añade o elimina publicadores y controla los estados activo/inactivo.</p>
-            <div class="nav-hint">Doble toque para abrir →</div>
-        </div>
-        <div class="welcome-card nav-card" data-href="/4_Lista_Publicadores">
+            <div class="nav-hint">Haz clic para abrir →</div>
+        </a>
+        <a class="welcome-card nav-card" href="/Lista_Publicadores{query_str}" target="_self" style="text-decoration: none; color: inherit; display: block;">
             <div class="card-emoji">👥</div>
             <h3>Lista de Publicadores</h3>
             <p>Consulta el directorio completo de publicadores con su historial de informes y privilegios asignados.</p>
-            <div class="nav-hint">Doble toque para abrir →</div>
-        </div>
+            <div class="nav-hint">Haz clic para abrir →</div>
+        </a>
     </div>
-    <script>
-    (function() {
-        // Esperar a que el DOM esté completamente cargado
-        function initNavCards() {
-            var cards = document.querySelectorAll('.nav-card');
-            if (cards.length === 0) {
-                setTimeout(initNavCards, 200);
-                return;
-            }
-            cards.forEach(function(card) {
-                var href = card.getAttribute('data-href');
-                var lastTap = 0;
-                card.setAttribute('role', 'button');
-                card.setAttribute('tabindex', '0');
-
-                // Double-click (PC / laptop)
-                card.addEventListener('dblclick', function(e) {
-                    e.preventDefault();
-                    window.location.href = href;
-                });
-
-                // Double-tap (móvil / tableta)
-                card.addEventListener('touchend', function(e) {
-                    var now = Date.now();
-                    var gap = now - lastTap;
-                    if (gap > 0 && gap < 400) {
-                        e.preventDefault();
-                        window.location.href = href;
-                    }
-                    lastTap = now;
-                });
-
-                // Pointer double-tap for modern phones/tablets and hybrid devices
-                card.addEventListener('pointerup', function(e) {
-                    if (e.pointerType === 'mouse') return;
-                    var now = Date.now();
-                    var gap = now - lastTap;
-                    if (gap > 0 && gap < 420) {
-                        e.preventDefault();
-                        window.location.href = href;
-                    }
-                    lastTap = now;
-                });
-
-                card.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        window.location.href = href;
-                    }
-                });
-
-                // Hover visual feedback
-                card.addEventListener('mouseenter', function() {
-                    card.style.cursor = 'pointer';
-                });
-            });
-        }
-        setTimeout(initNavCards, 300);
-    </script>
     """, unsafe_allow_html=True)
 
 

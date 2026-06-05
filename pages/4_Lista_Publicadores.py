@@ -8,8 +8,11 @@ import pandas as pd
 from database import SessionLocal
 import models
 
+from auth_helper import check_session_cookie_or_localstorage
+check_session_cookie_or_localstorage()
+
 if not st.session_state.get("logged_in", False):
-    st.warning("Por favor, inicia sesión en la página principal para acceder a esta página.")
+    st.warning("Por favor, inicia sesión. Si no has iniciado sesión, por favor hazlo en la página principal.")
     st.stop()
 
 # ========================= CARGAR ESTILOS RESPONSIVOS =========================
