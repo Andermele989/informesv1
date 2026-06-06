@@ -1,0 +1,12 @@
+streamlit
+psycopg2-binary
+SQLAlchemy
+pandas
+openpyxl
+openai
+google-generativeai
+python-dotenv
+plotly
+Pillow
+fpdf2
+kaleido
