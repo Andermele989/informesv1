@@ -13,7 +13,7 @@ import sys
 
 from core import models
 from core.database import sesion
-from core.security import hash_password, validar_password
+from core.security import hash_password, normalizar_usuario, validar_password
 
 
 def pedir_password(usuario: str) -> str:
@@ -32,7 +32,7 @@ def main(argv: list[str]) -> int:
     if not argv or argv[0] not in {"listar", "crear", "password", "desbloquear", "activar", "desactivar"}:
         print(__doc__)
         return 2
-    accion, nombre = argv[0], (argv[1] if len(argv) > 1 else "")
+    accion, nombre = argv[0], normalizar_usuario(argv[1] if len(argv) > 1 else "")
     with sesion() as db:
         if accion == "listar":
             for u in db.query(models.User).order_by(models.User.username):

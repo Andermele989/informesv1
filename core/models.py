@@ -1,5 +1,5 @@
 """Modelos de datos."""
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.orm import relationship
 
 from core.database import Base
@@ -9,10 +9,15 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String(64), unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    role = Column(String, default="user")  # "admin" | "user"
-    is_inactive = Column(Boolean, default=False)
+    role = Column(String(16), nullable=False, default="user")  # "admin" | "user"
+    is_inactive = Column(Boolean, nullable=False, default=False)
+
+    __table_args__ = (
+        CheckConstraint("role IN ('admin', 'user')", name="ck_users_role"),
+        Index("uq_users_username_lower", func.lower(username), unique=True),
+    )
 
     reports = relationship("MonthlyReport", back_populates="user")
 
@@ -21,7 +26,7 @@ class LoginAttempt(Base):
     """Intentos de acceso fallidos por usuario (limita la fuerza bruta)."""
     __tablename__ = "login_attempts"
 
-    username = Column(String, primary_key=True)  # en minúsculas
+    username = Column(String(64), primary_key=True)  # en minúsculas
     failures = Column(Integer, nullable=False, default=0)
     last_failure = Column(DateTime)
     locked_until = Column(DateTime)  # UTC
@@ -48,7 +53,7 @@ class Publisher(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
-    is_inactive = Column(Boolean, default=False, index=True)
+    is_inactive = Column(Boolean, nullable=False, default=False, index=True)
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True, index=True)
 
     group = relationship("Group", back_populates="publishers")
@@ -61,17 +66,18 @@ class MonthlyReport(Base):
     # en bases ya existentes (create_all no altera tablas creadas antes).
     __table_args__ = (
         Index("uq_report_publisher_month", "publisher_id", "month", unique=True),
+        CheckConstraint("bible_courses >= 0", name="ck_monthly_reports_bible_courses_nonnegative"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), index=True)
-    publisher_id = Column(Integer, ForeignKey("publishers.id"), nullable=True)
-    month = Column(String, index=True)  # "YYYY-MM"
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    publisher_id = Column(Integer, ForeignKey("publishers.id"), nullable=False)
+    month = Column(String(7), nullable=False, index=True)  # "YYYY-MM"
     full_name = Column(String)
     assigned_privileges = Column(String)
     service_report = Column(String)  # "NN horas" | "Sí participé (...)" | "No participé (...)"
     notes = Column(String)
-    bible_courses = Column(Integer, default=0)
+    bible_courses = Column(Integer, nullable=False, default=0)
 
     user = relationship("User", back_populates="reports")
     publisher = relationship("Publisher", back_populates="reports")

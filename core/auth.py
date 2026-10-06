@@ -10,12 +10,13 @@ import time
 from datetime import datetime, timedelta, UTC
 
 import streamlit as st
+from sqlalchemy import func
 
 from core import models
 from core.database import sesion
 from core.security import (
     SESSION_TTL_SECONDS, hash_password, huella_password, make_session_token, read_session_token,
-    validar_password, verify_password, verificar_senuelo,
+    normalizar_usuario, validar_password, verify_password, verificar_senuelo,
 )
 
 log = logging.getLogger("informes.auth")
@@ -67,17 +68,17 @@ def _registrar_fallo(db, clave: str, intento: models.LoginAttempt | None, ahora:
 
 def autenticar(db, username: str, password: str) -> tuple[models.User | None, str | None]:
     """Comprueba credenciales. Devuelve `(usuario, None)` o `(None, mensaje_de_error)`."""
-    nombre = (username or "").strip()
+    nombre = normalizar_usuario(username)
     if not nombre or not password:
         return None, "Ingresa tu usuario y tu contraseña."
 
-    clave = nombre.lower()[:64]
+    clave = nombre
     ahora = _ahora()
     intento = db.get(models.LoginAttempt, clave)
     if intento and intento.locked_until and intento.locked_until > ahora:
         return None, _mensaje_bloqueo(int((intento.locked_until - ahora).total_seconds() // 60) + 1)
 
-    user = db.query(models.User).filter(models.User.username == nombre).first()
+    user = db.query(models.User).filter(func.lower(models.User.username) == nombre).first()
     if user:
         valida, mejorar_hash = verify_password(password, user.password_hash)
     else:
@@ -200,7 +201,11 @@ def restaurar_sesion() -> None:
         return
 
     controlador = _controlador_cookies()
-    token = controlador.get(COOKIE_NAME) if controlador else None
+    try:
+        token = controlador.get(COOKIE_NAME) if controlador else None
+    except Exception:
+        log.warning("No se pudo leer la cookie de sesión; se solicitará iniciar sesión de nuevo.")
+        return
     datos = read_session_token(token) if token else None
     if not datos:
         return

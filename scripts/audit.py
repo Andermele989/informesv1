@@ -11,7 +11,7 @@ from sqlalchemy import inspect, text
 
 from core import models
 from core.database import engine, sesion
-from core.security import is_bcrypt_hash, verify_password
+from core.security import es_secret_key_valida, is_bcrypt_hash, verify_password
 
 TABLAS_REQUERIDAS = {"users", "privileges", "groups", "publishers", "monthly_reports", "login_attempts"}
 INDICES_REQUERIDOS = {
@@ -67,7 +67,12 @@ def auditar_base_de_datos() -> int:
     # En SQLite o Postgres algunos nombres pueden coincidir o variar ligeramente
     indices_encontrados = INDICES_REQUERIDOS & indices_existentes
     resumen = f"{len(indices_encontrados)}/{len(INDICES_REQUERIDOS)} verificados"
-    _check(len(indices_encontrados) >= 3, "Índices de rendimiento de consultas", resumen, info=resumen)
+    fallos += not _check(
+        indices_encontrados == INDICES_REQUERIDOS,
+        "Índices de rendimiento e integridad de consultas",
+        f"faltan: {sorted(INDICES_REQUERIDOS - indices_encontrados)}",
+        info=resumen,
+    )
 
     return fallos
 
@@ -118,7 +123,8 @@ def auditar_seguridad() -> int:
 
     clave_secreta = os.getenv("SECRET_KEY", "")
     longitud = f"longitud actual: {len(clave_secreta)}"
-    fallos += not _check(len(clave_secreta) >= 32, "Firma HMAC de sesiones (SECRET_KEY >= 32 caracteres)", longitud, info=longitud)
+    clave_valida = es_secret_key_valida(clave_secreta)
+    fallos += not _check(clave_valida, "Firma HMAC de sesiones (SECRET_KEY real y >= 32 caracteres)", longitud, info=longitud)
 
     # IA y APIs
     tiene_gemini = bool(os.getenv("GEMINI_API_KEY"))

@@ -18,6 +18,14 @@ log = logging.getLogger("informes.security")
 BCRYPT_ROUNDS = 12
 PASSWORD_MIN = 8
 PASSWORD_MAX_BYTES = 72  # límite real de bcrypt
+USERNAME_MAX = 64
+
+# Valores publicados en archivos de ejemplo: nunca deben firmar sesiones reales.
+_SECRETOS_DE_EJEMPLO = frozenset({
+    "genera_una_clave_secreta_aleatoria_larga_aqui",
+    "tu_secret_key_aqui",
+    "cambia_esta_clave_en_produccion",
+})
 
 
 def _dias_de_sesion() -> int:
@@ -102,16 +110,18 @@ def generar_password(longitud: int = 16) -> str:
 # Clave secreta y token de sesión
 # ---------------------------------------------------------------------------
 
+def es_secret_key_valida(secret: str | None) -> bool:
+    """Indica si una clave puede usarse para firmar sesiones persistentes."""
+    return bool(secret and len(secret) >= 32 and secret.strip().lower() not in _SECRETOS_DE_EJEMPLO)
+
 def get_secret_key() -> str:
     """`SECRET_KEY` del entorno; si falta, una clave efímera (las sesiones no sobreviven reinicios)."""
     secret = os.getenv("SECRET_KEY")
-    if not secret:
+    if not es_secret_key_valida(secret):
         secret = secrets.token_hex(32)
         os.environ["SECRET_KEY"] = secret
-        log.warning("SECRET_KEY no está definida: se usa una clave temporal y las sesiones "
-                    "se perderán al reiniciar. Defínela en .env o en las variables del servidor.")
-    elif len(secret) < 32:
-        log.warning("SECRET_KEY es corta (<32 caracteres). Usa una clave aleatoria larga.")
+        log.warning("SECRET_KEY no está definida o usa el valor de ejemplo: se usa una clave temporal y las "
+                    "sesiones se perderán al reiniciar. Define una clave aleatoria real en el servidor.")
     return secret
 
 
@@ -176,3 +186,8 @@ def limpiar_texto(valor: object, max_len: int = 200, multilinea: bool = False) -
     texto = _CONTROL.sub("", "" if valor is None else str(valor))
     texto = texto.strip() if multilinea else " ".join(texto.split())
     return texto[:max_len]
+
+
+def normalizar_usuario(valor: object) -> str:
+    """Normaliza el identificador de acceso para que no existan variantes por mayúsculas."""
+    return limpiar_texto(valor, USERNAME_MAX).lower()

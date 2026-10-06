@@ -76,3 +76,13 @@ def test_duracion_de_sesion_tolera_valores_invalidos(monkeypatch):
     for valor, esperado in (("14", 14), ("0", 1), ("-3", 1), ("siete", 7), ("", 7)):
         monkeypatch.setenv("SESSION_TTL_DAYS", valor)
         assert security._dias_de_sesion() == esperado
+
+
+def test_secret_key_de_ejemplo_no_es_valida():
+    assert not security.es_secret_key_valida("genera_una_clave_secreta_aleatoria_larga_aqui")
+    assert not security.es_secret_key_valida("corta")
+    assert security.es_secret_key_valida("a" * 32)
+
+
+def test_normalizar_usuario_elimina_espacios_y_mayusculas():
+    assert security.normalizar_usuario("  Admin Principal  ") == "admin principal"
