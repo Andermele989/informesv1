@@ -1,95 +1,49 @@
+"""Instalación inicial: crea la base de datos `DB_NAME`, las tablas y el usuario `admin`.
+
+Desde la raíz del proyecto:  python -m scripts.setup_db
+Si `ADMIN_INITIAL_PASSWORD` no está definida, se genera una contraseña aleatoria y se muestra una vez.
 """
-Script para crear la base de datos informes_db y las tablas necesarias.
-Ejecutar UNA sola vez: python setup_db.py
-"""
+import os
+import sys
+
 import psycopg2
+from psycopg2 import sql
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-DB_USER = "postgres"
-DB_PASS = "123456"
-DB_HOST = "localhost"
-DB_PORT = "5432"
-DB_NAME = "informes_db"
+from core.database import RAIZ_PROYECTO  # noqa: F401  (carga el .env)
 
-def create_database():
-    print(f"Conectando a PostgreSQL como '{DB_USER}'...")
+
+def crear_base_de_datos() -> bool:
+    usuario, host, puerto = os.getenv("DB_USER", "postgres"), os.getenv("DB_HOST", "localhost"), os.getenv("DB_PORT", "5432")
+    nombre = os.getenv("DB_NAME", "informes_db")
+    print(f"Conectando a PostgreSQL como '{usuario}' en {host}:{puerto}...")
     try:
-        # Conectar a la DB por defecto 'postgres' para poder crear informes_db
-        conn = psycopg2.connect(
-            dbname="postgres",
-            user=DB_USER,
-            password=DB_PASS,
-            host=DB_HOST,
-            port=DB_PORT
-        )
+        conn = psycopg2.connect(dbname="postgres", user=usuario, password=os.getenv("DB_PASS", ""), host=host, port=puerto)
+    except psycopg2.Error as exc:
+        print(f"No se pudo conectar: {exc}\n\nRevisa que PostgreSQL esté activo y que DB_USER, DB_PASS, DB_HOST y DB_PORT "
+              "estén bien definidos en .env.")
+        return False
+    with conn:
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor = conn.cursor()
-
-        # Verificar si ya existe
-        cursor.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = %s", (DB_NAME,))
-        exists = cursor.fetchone()
-
-        if not exists:
-            cursor.execute(f'CREATE DATABASE "{DB_NAME}"')
-            print(f"✅ Base de datos '{DB_NAME}' creada exitosamente.")
-        else:
-            print(f"ℹ️  La base de datos '{DB_NAME}' ya existe. No se creó de nuevo.")
-
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        print(f"❌ Error al conectar a PostgreSQL: {e}")
-        print()
-        print("VERIFICA QUE:")
-        print("  1. PostgreSQL esté instalado y corriendo (servicio activo en Windows).")
-        print("  2. El usuario 'postgres' exista y la contraseña sea '1234'.")
-        print("  3. PostgreSQL escucha en localhost:5432 (configuración por defecto).")
-        return False
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM pg_catalog.pg_database WHERE datname = %s", (nombre,))
+            if cur.fetchone():
+                print(f"La base de datos '{nombre}' ya existe.")
+            else:
+                cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(nombre)))
+                print(f"Base de datos '{nombre}' creada.")
+    conn.close()
     return True
 
 
-def init_tables():
-    print("Creando tablas en la base de datos...")
-    try:
-        # Importar después de garantizar la BD existe
-        from database import engine, Base
-        import models  # noqa: importa los modelos para que Base los conozca
-        Base.metadata.create_all(bind=engine)
-        print("✅ Tablas creadas correctamente.")
-    except Exception as e:
-        print(f"❌ Error al crear tablas: {e}")
-        return False
-    return True
-
-
-def create_admin():
-    print("Verificando usuario administrador...")
-    try:
-        from database import SessionLocal
-        import models
-        db = SessionLocal()
-        admin = db.query(models.User).filter(models.User.username == "admin").first()
-        if not admin:
-            new_admin = models.User(username="admin", password_hash="admin", role="admin")
-            db.add(new_admin)
-            db.commit()
-            print("✅ Usuario admin creado (usuario: admin / contraseña: admin).")
-        else:
-            print("ℹ️  El usuario admin ya existe.")
-        db.close()
-    except Exception as e:
-        print(f"❌ Error al crear usuario admin: {e}")
-        return False
-    return True
+def main() -> int:
+    if not crear_base_de_datos():
+        return 1
+    from core.arranque import preparar
+    preparar()
+    print("Tablas y usuario admin listos.")
+    return 0
 
 
 if __name__ == "__main__":
-    print("=" * 50)
-    print("  CONFIGURACIÓN INICIAL DE LA BASE DE DATOS")
-    print("=" * 50)
-    if create_database():
-        if init_tables():
-            create_admin()
-    print("=" * 50)
-    print("  PROCESO FINALIZADO")
-    print("=" * 50)
+    sys.exit(main())

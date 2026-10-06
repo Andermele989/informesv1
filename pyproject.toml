@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 140
+target-version = "py312"
+extend-exclude = ["venv", "analisis de informe"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "SIM", "RUF100"]
+ignore = [
+    "E402",    # main.py debe llamar a st.set_page_config antes de importar el resto
+    "SIM108",  # el ternario no siempre es más claro
+    "B008",
+    "RUF001", "RUF002", "RUF003",  # el código está en español: tildes y comillas son normales
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    # google-generativeai está en desuso; su aviso no afecta a las pruebas.
+    "ignore::FutureWarning:google.*",
+    "ignore:All support for the `google.generativeai` package:FutureWarning",
+]

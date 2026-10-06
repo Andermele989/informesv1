@@ -1,36 +1,58 @@
+"""Conexión a la base de datos (SQLAlchemy).
+
+Producción define `DATABASE_URL`; en local se arma desde `DB_USER`, `DB_PASS`, `DB_HOST`,
+`DB_PORT` y `DB_NAME` (ver `.env.example`).
+"""
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from contextlib import contextmanager
+
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-load_dotenv()
+RAIZ_PROYECTO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(RAIZ_PROYECTO, ".env"))
 
-# 🔥 Render usa esto
-DATABASE_URL = os.getenv("DATABASE_URL")
 
-# fallback local
-if not DATABASE_URL:
-    DB_USER = os.getenv("DB_USER", "postgres")
-    DB_PASS = os.getenv("DB_PASS", "123456")
-    DB_HOST = os.getenv("DB_HOST", "localhost")
-    DB_NAME = os.getenv("DB_NAME", "informes_db")
-    DB_PORT = os.getenv("DB_PORT", "5432")
+def _url_base_de_datos() -> str | URL:
+    url = os.getenv("DATABASE_URL")
+    if url:
+        # Render y Heroku entregan "postgres://", que SQLAlchemy 2 ya no acepta.
+        return "postgresql://" + url[len("postgres://"):] if url.startswith("postgres://") else url
+    # URL.create escapa la contraseña: caracteres como "@" o "/" no rompen la conexión.
+    return URL.create(
+        "postgresql",
+        username=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASS") or None,
+        host=os.getenv("DB_HOST", "localhost"),
+        port=int(os.getenv("DB_PORT", "5432")),
+        database=os.getenv("DB_NAME", "informes_db"),
+    )
 
-    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-engine = create_engine(DATABASE_URL)
+DATABASE_URL = _url_base_de_datos()
+_es_sqlite = str(DATABASE_URL).startswith("sqlite")
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=1800,
+    **({"connect_args": {"check_same_thread": False}} if _es_sqlite else {"pool_size": 10, "max_overflow": 10, "pool_timeout": 30}),
 )
 
+SessionLocal = sessionmaker(autoflush=False, expire_on_commit=False, bind=engine)
 Base = declarative_base()
 
-def get_db():
+
+@contextmanager
+def sesion():
+    """Sesión de base de datos que siempre se cierra (y revierte si hubo un error)."""
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()

@@ -1,7 +1,20 @@
 [theme]
-base="dark"
-primaryColor="#00e8a2"
-backgroundColor="#0b1020"
-secondaryBackgroundColor="#0f111a"
-textColor="#f8fafc"
-font="sans serif"
+base = "dark"
+primaryColor = "#14f1b2"
+backgroundColor = "#070b16"
+secondaryBackgroundColor = "#0e1426"
+textColor = "#eef2ff"
+font = "sans serif"
+
+[client]
+# "minimal" oculta el botón Deploy y los menús de desarrollo.
+toolbarMode = "minimal"
+# No mostrar trazas de error (rutas internas, consultas) a los usuarios.
+showErrorDetails = "none"
+
+[server]
+enableXsrfProtection = true
+enableCORS = true
+
+[browser]
+gatherUsageStats = false
