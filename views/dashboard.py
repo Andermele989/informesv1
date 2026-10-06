@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from core import auth, ui
+from core.security import sanitize_text
 from services import datos, excel, graficos, ia, metricas, pdf
 
 log = logging.getLogger("informes.dashboard")
@@ -16,7 +17,7 @@ auth.require_login()
 informes, publicadores = datos.cargar_datos()
 cabecera = st.empty()  # se rellena al final, cuando ya se conocen los filtros
 if informes.empty:
-    ui.encabezado("Dashboard", "Aún no hay informes registrados", etiqueta="Dashboard")
+    ui.encabezado("Dashboard", "Aún no hay informes registrados")
     st.info("Ve a «Registro» para añadir el primer informe.")
     st.stop()
 
@@ -88,32 +89,36 @@ def delta(campo: str) -> tuple[str, str]:
 
 cabecera.empty()
 with cabecera.container():
-    ui.encabezado("Dashboard de rendimiento", "Análisis estadístico del servicio del grupo", etiqueta="Dashboard", insignias=(
+    ui.encabezado("Dashboard de rendimiento", "Análisis estadístico del servicio del grupo", insignias=(
         ("Periodo", etiqueta_periodo), ("Grupo", grupo_sel), ("Informes", str(actual.informes)),
         ("Año de servicio", f"{anio_sel} · {metricas.numero(resumen_anio.horas)} h" if anio_sel != "Todos" else "Histórico"),
     ))
 
-st.markdown(
-    '<div class="metric-grid">'
-    + ui.tarjeta_metrica("Informes recibidos", metricas.numero(actual.informes), "mint", delta=delta("informes"),
-                         pie=f"{metricas.numero(esperados)} esperados · {metricas.porcentaje(cobertura)}", progreso=cobertura)
-    + ui.tarjeta_metrica("Horas reportadas", metricas.numero(actual.horas), "sky", delta=delta("horas"),
-                         pie=f"Promedio {metricas.numero(actual.promedio_horas, 1)} h por informe")
-    + ui.tarjeta_metrica("Cursos bíblicos", metricas.numero(actual.cursos), "violet", delta=delta("cursos"),
-                         pie=f"Promedio {metricas.numero(actual.promedio_cursos, 1)} por informe")
-    + ui.tarjeta_metrica("Sin actividad", metricas.numero(actual.sin_actividad), "amber",
-                         pie=f"{metricas.porcentaje(actual.con_actividad_pct)} con actividad",
-                         progreso=actual.con_actividad_pct)
-    + "</div>",
-    unsafe_allow_html=True,
+evolucion_base = metricas.solo_activos(filtrar_ambito(informes))
+historial = metricas.serie_mensual(evolucion_base)  # últimos 6 meses, para las mini-barras
+
+ui.html(
+    '<div class="kpi-grid">'
+    + ui.tarjeta_metrica("Informes recibidos", metricas.numero(actual.informes), "amber", "description", delta=delta("informes"),
+                         nota=f"{metricas.numero(esperados)} esperados · {metricas.porcentaje(cobertura)}",
+                         serie=historial["informes"].tolist())
+    + ui.tarjeta_metrica("Horas reportadas", metricas.numero(actual.horas), "orange", "schedule", delta=delta("horas"),
+                         nota=f"Promedio {metricas.numero(actual.promedio_horas, 1)} h por informe",
+                         serie=historial["horas"].tolist())
+    + ui.tarjeta_metrica("Cursos bíblicos", metricas.numero(actual.cursos), "gold", "menu_book", delta=delta("cursos"),
+                         nota=f"Promedio {metricas.numero(actual.promedio_cursos, 1)} por informe",
+                         serie=historial["cursos"].tolist())
+    + ui.tarjeta_metrica("Sin actividad", metricas.numero(actual.sin_actividad), "flame", "pause_circle",
+                         nota=f"{metricas.porcentaje(actual.con_actividad_pct)} con actividad",
+                         serie=historial["sin_actividad"].tolist())
+    + "</div>"
 )
 
 # ----------------------------------------------------------------------------
 # Gráficos
 # ----------------------------------------------------------------------------
-evolucion_base = metricas.solo_activos(filtrar_ambito(informes))
 fig_horas = graficos.horas_por_publicador(activos)
-fig_dona = graficos.distribucion(activos)
+filas_dona = graficos.distribucion_filas(activos)
 fig_evolucion = graficos.evolucion_mensual(evolucion_base)
 
 
@@ -130,16 +135,28 @@ fila1 = st.columns([3, 2], gap="medium")
 with fila1[0]:
     tarjeta_grafico("horas", "Horas por publicador", fig_horas, "Sin horas reportadas en este periodo.",
                     "Solo quienes reportan horas")
-with fila1[1]:
-    tarjeta_grafico("dona", "Distribución de horas", fig_dona, "Sin horas reportadas en este periodo.")
+with fila1[1], st.container(key="card_dona"):
+    ui.titulo_tarjeta("Distribución de horas", "Participación de cada publicador")
+    if not filas_dona:
+        st.caption("Sin horas reportadas en este periodo.")
+    else:
+        c_anillo, c_leyenda = st.columns([1.35, 1], vertical_alignment="center", gap="small")
+        c_anillo.plotly_chart(graficos.distribucion(filas_dona), width="stretch", config=graficos.CONFIG)
+        c_leyenda.markdown(
+            '<ul class="legend">' + "".join(
+                f'<li><i style="background:{color}"></i><span>{sanitize_text(graficos.nombre_corto(nombre, 15))}</span>'
+                f"<b>{pct:.0f}% <em>({horas})</em></b></li>"
+                for nombre, horas, pct, color in filas_dona) + "</ul>",
+            unsafe_allow_html=True)
 
 fila2 = st.columns([3, 2], gap="medium")
 with fila2[0]:
-    tarjeta_grafico("evolucion", "Evolución mensual de horas", fig_evolucion, "No hay suficientes datos.")
+    tarjeta_grafico("evolucion", "Evolución mensual de horas", fig_evolucion, "No hay suficientes datos.",
+                    "Horas reportadas cada mes")
 with fila2[1], st.container(key="card_precursores"):
     c_titulo, c_tipo = st.columns([1, 1.2], vertical_alignment="center")
     with c_titulo:
-        ui.titulo_tarjeta("Precursores")
+        ui.titulo_tarjeta("Precursores", "Horas del periodo")
     tipo = c_tipo.selectbox("Tipo", ["Todos", "Regulares", "Auxiliares"], label_visibility="collapsed")
     precursores = activos[activos["Privilegios"].str.contains("precursor", case=False, na=False)]
     if tipo != "Todos":

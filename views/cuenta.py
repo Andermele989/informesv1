@@ -5,7 +5,7 @@ from core import auth, formularios, ui
 
 auth.require_login()
 
-ui.encabezado("Mi cuenta", "Administra el acceso a tu cuenta", etiqueta="Seguridad", insignias=(
+ui.encabezado("Mi cuenta", "Administra el acceso a tu cuenta", insignias=(
     ("Usuario", st.session_state.get("username", "")),
     ("Rol", "Administrador" if auth.es_admin() else "Usuario"),
 ))

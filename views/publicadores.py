@@ -5,7 +5,7 @@ from core import auth, ui
 from services import datos, excel, metricas
 
 auth.require_login()
-ui.encabezado("Publicadores", "Directorio con el historial de privilegios, grupos e informes", etiqueta="Gestión")
+ui.encabezado("Publicadores", "Directorio con el historial de privilegios, grupos e informes")
 
 informes, publicadores = datos.cargar_datos()
 if publicadores.empty:
@@ -31,13 +31,13 @@ if privilegio != "Todos":
 if estado != "Todos":
     vista = vista[vista["Estado"] == estado]
 
-st.markdown(
-    '<div class="metric-grid compact">'
-    + ui.tarjeta_metrica("Registros", metricas.numero(len(vista)), "mint")
-    + ui.tarjeta_metrica("Publicadores", metricas.numero(vista["Publicador"].nunique()), "sky")
-    + ui.tarjeta_metrica("Cursos bíblicos", metricas.numero(int(vista["Cursos Bíblicos"].sum())), "violet")
-    + "</div>",
-    unsafe_allow_html=True,
+ui.html(
+    '<div class="kpi-grid compact">'
+    + ui.tarjeta_metrica("Registros", metricas.numero(len(vista)), "amber", "list_alt", nota="Filas del directorio")
+    + ui.tarjeta_metrica("Publicadores", metricas.numero(vista["Publicador"].nunique()), "orange", "person", nota="Distintos en la vista")
+    + ui.tarjeta_metrica("Cursos bíblicos", metricas.numero(int(vista["Cursos Bíblicos"].sum())), "gold", "menu_book",
+                         nota="Suma de la vista")
+    + "</div>"
 )
 
 with st.container(key="card_tabla"):

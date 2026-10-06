@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+from core.security import limpiar_texto
 from services.metricas import Resumen
 
 log = logging.getLogger("informes.ia")
@@ -172,3 +173,29 @@ def generar_analisis(motor: str, prompt: str) -> tuple[str, str]:
     if not texto.strip():
         raise ErrorIA(f"{motor} devolvió una respuesta vacía. Inténtalo de nuevo.")
     return texto.strip(), modelo
+
+
+MOTIVO_MAX = 80  # lo único que se envía al proveedor: una frase corta, nunca el historial del publicador
+
+
+def sugerir_nota(motivo: str, privilegio: str = "") -> str:
+    """Genera con IA una redacción respetuosa y formal para justificar la inactividad o bajas horas."""
+    motivo_limpio = limpiar_texto(motivo, MOTIVO_MAX)
+    privilegio = limpiar_texto(privilegio, 40)
+    if not motivo_limpio:
+        motivo_limpio = "circunstancias personales o de salud"
+    prompt = (
+        f"Redacta una breve observación formal, respetuosa y concisa (máximo 12 palabras) "
+        f"para el informe de un publicador ({privilegio or 'Publicador'}) "
+        f"cuyo motivo es: '{motivo_limpio}'. "
+        f"Responde ÚNICAMENTE la frase de la nota, sin comillas ni explicaciones."
+    )
+    motor = "Google Gemini" if os.getenv("GEMINI_API_KEY") else ("OpenAI" if os.getenv("OPENAI_API_KEY") else None)
+    if not motor:
+        return f"Ausencia temporal justificada: {motivo_limpio}."
+    try:
+        texto, _ = generar_analisis(motor, prompt)
+        return texto.strip().strip('"').strip("'")
+    except Exception:
+        return f"Ausencia justificada por {motivo_limpio}."
+

@@ -68,3 +68,15 @@ def numero(valor: float, decimales: int = 0) -> str:
     """Formato español: 1.234 y 12,5."""
     texto = f"{valor:,.{decimales}f}"
     return texto.replace(",", "§").replace(".", ",").replace("§", ".")
+
+
+def serie_mensual(df_activos: pd.DataFrame, meses: int = 6) -> pd.DataFrame:
+    """Informes, horas, cursos y casos sin actividad por mes (últimos `meses`), para las mini-barras."""
+    columnas = ["Mes", "informes", "horas", "cursos", "sin_actividad"]
+    if df_activos.empty:
+        return pd.DataFrame(columns=columnas)
+    marcado = df_activos.assign(_sin=sin_actividad(df_activos))
+    serie = marcado.groupby("Mes").agg(
+        informes=("Mes", "size"), horas=("Horas", "sum"), cursos=("Cursos Bíblicos", "sum"), sin_actividad=("_sin", "sum"),
+    ).reset_index().sort_values("Mes").tail(meses)
+    return serie[columnas].reset_index(drop=True)

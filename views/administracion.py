@@ -13,7 +13,7 @@ from services import datos
 log = logging.getLogger("informes.admin")
 
 auth.require_admin()
-ui.encabezado("Administración", "Gestiona privilegios, publicadores y grupos del sistema", etiqueta="Administración")
+ui.encabezado("Administración", "Gestiona privilegios, publicadores y grupos del sistema")
 
 NOMBRE_MAX = 100
 

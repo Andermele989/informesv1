@@ -8,12 +8,12 @@ from sqlalchemy.exc import IntegrityError
 from core import auth, models, ui
 from core.database import sesion
 from core.security import limpiar_texto, sanitize_text
-from services import datos
+from services import datos, ia
 
 log = logging.getLogger("informes.registro")
 
 auth.require_login()
-ui.encabezado("Registro de informe", "Registra la actividad mensual de los publicadores del grupo", etiqueta="Registro")
+ui.encabezado("Registro de informe", "Registra la actividad mensual de los publicadores del grupo")
 
 # Mes de referencia: el anterior al actual (se informa a mes vencido).
 referencia = dt.date.today().replace(day=1) - dt.timedelta(days=1)
@@ -75,6 +75,16 @@ with col_izq, st.container(key="card_periodo"):
                 sugerido = ultimo[0]
         st.session_state["reg_priv"] = sugerido
     privilegio = st.selectbox("Privilegio del mes", opciones_priv, key="reg_priv")
+    if seleccionado:
+        with sesion() as db:
+            ultimos = (db.query(models.MonthlyReport)
+                       .filter(models.MonthlyReport.publisher_id == seleccionado[0])
+                       .order_by(models.MonthlyReport.month.desc()).limit(3).all())
+        if ultimos:
+            horas_rec = [datos.extraer_horas(u.service_report) for u in ultimos]
+            prom_h = sum(horas_rec) / len(horas_rec) if horas_rec else 0
+            ui.html(f'<div class="hist"><span class="ai-badge">Historial</span>'
+                    f'<span>Promedio: <b>{prom_h:.1f} h/mes</b> · {len(ultimos)} informes previos</span></div>')
 
 # ----------------------------------------------------------------------------
 # Derecha: actividad del mes
@@ -99,14 +109,28 @@ with col_der, st.container(key="card_actividad"):
         else:
             cursos = 0
             st.caption("Al no haber participado, los cursos bíblicos quedan en 0.")
-    notas = limpiar_texto(st.text_area("Notas u observaciones (opcional)", max_chars=500, height=100, key="reg_notas",
+
+    c_lbl, c_ai = st.columns([1.8, 1.2], vertical_alignment="bottom")
+    with c_lbl:
+        st.caption("Notas u observaciones (opcional)")
+    with c_ai, st.popover("Asistente IA", icon=":material/auto_awesome:"):
+        st.caption("Redacta una nota formal. Solo se envía al proveedor de IA la frase corta que escribas aquí: "
+                   "evita diagnósticos y datos personales.")
+        motivo_ia = st.text_input("Motivo breve", placeholder="Ej: viaje, trabajo, horario", key="ai_reg_motivo", max_chars=80)
+        if st.button("Aplicar sugerencia", icon=":material/check:", key="btn_ai_sugerir", type="primary"):
+            sug = ia.sugerir_nota(motivo_ia, privilegio)
+            st.session_state["reg_notas"] = sug
+            st.rerun()
+
+    notas = limpiar_texto(st.text_area("Notas u observaciones", max_chars=500, height=85, key="reg_notas",
+                                       label_visibility="collapsed",
                                        help="Si no predicó, indica por qué. Ej: «Enfermo», «De viaje»."), 500, multilinea=True)
 
 # ----------------------------------------------------------------------------
 # Resumen y guardado
 # ----------------------------------------------------------------------------
 if seleccionado:
-    ui.html(f"""<div class="summary"><div class="card-title">Resumen del informe</div><div class="summary-grid">
+    ui.html(f"""<div class="summary"><div class="card-head"><b>Resumen del informe</b></div><div class="summary-grid">
         <div><span>Publicador</span><b>{sanitize_text(seleccionado[1])}</b></div>
         <div><span>Periodo</span><b>{sanitize_text(etiqueta_mes)}</b></div>
         <div><span>Privilegio</span><b>{sanitize_text(privilegio)}</b></div>

@@ -19,8 +19,8 @@ try:
     preparar_base_de_datos()
 except Exception:
     logging.getLogger("informes").exception("No se pudo preparar la base de datos")
-    st.error("No se pudo conectar a la base de datos. Revisa la configuración en `.env` "
-             "y ejecuta `python -m scripts.audit` para ver el detalle.")
+    st.error("No se pudo preparar la base de datos: revisa la conexión en `.env` o los datos señalados en el "
+             "registro del servidor. `python -m scripts.audit` muestra el detalle.")
     st.stop()
 
 ui.inyectar_estilos()
@@ -62,7 +62,7 @@ if not con_sesion:
 ui.perfil_sidebar()
 if debil:
     ui.encabezado("Cambia tu contraseña", "La contraseña actual es débil o predeterminada. "
-                  "Elige una nueva para continuar.", etiqueta="Seguridad")
+                  "Elige una nueva para continuar.")
     _, centro, _ = st.columns([1, 1.6, 1])
     with centro, st.container(key="card_cuenta"):
         formularios.mostrar_cambio_password()

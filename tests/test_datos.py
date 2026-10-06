@@ -67,3 +67,16 @@ def test_variacion_y_formato_numerico():
     assert metricas.numero(1234) == "1.234"
     assert metricas.numero(12.5, 1) == "12,5"
     assert metricas.numero(1234.5, 1) == "1.234,5"
+
+
+def test_serie_mensual_resume_por_mes_y_limita_a_los_ultimos():
+    meses = [f"2026-{m:02d}" for m in range(1, 9)]
+    df = pd.DataFrame({
+        "Mes": meses, "Horas": [10 * (i + 1) for i in range(8)], "Cursos Bíblicos": [1] * 8,
+        "Informe": ["x"] * 7 + ["No participé"], "Privilegios": ["Publicador"] * 8,
+    })
+    serie = metricas.serie_mensual(df, meses=6)
+    assert serie["Mes"].tolist() == meses[-6:]
+    assert serie["horas"].tolist() == [30, 40, 50, 60, 70, 80]
+    assert serie["sin_actividad"].tolist() == [0, 0, 0, 0, 0, 1]
+    assert metricas.serie_mensual(df.iloc[0:0]).empty

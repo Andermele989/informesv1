@@ -1,5 +1,24 @@
 # Cambios
 
+## 2.1.0
+
+### Diseño
+- Nueva identidad visual negro + naranja/ámbar inspirada en la referencia: superficies sólidas y sobrias (se eliminó el
+  efecto cristal, el desenfoque y el brillo animado de fondo, que además costaban rendimiento).
+- Cabecera de página plana, menú lateral con chips de icono y marca, y el tema de Streamlit alineado con la paleta.
+- Indicadores con chip de icono, variación frente al mes anterior y mini-barras con los últimos 6 meses reales.
+- Mismos gráficos con nuevo acabado: barras redondeadas, relleno degradado, rejilla punteada y dona con leyenda en lista.
+- Tarjetas de Inicio alineadas en filas y gráficos de una misma fila con la misma altura.
+
+### Seguridad e integridad
+- Usuarios únicos sin distinguir mayúsculas; restricciones en PostgreSQL (campos obligatorios, rol válido, cursos >= 0).
+- El arranque se detiene con un mensaje claro si hay datos que impiden aplicar esas restricciones, en vez de seguir a medias.
+- Una `SECRET_KEY` copiada de los archivos de ejemplo se rechaza y no firma sesiones.
+- Asistente de notas con IA: solo se envía una frase corta, limpia y limitada, con aviso al usuario.
+
+### Corrección
+- La pantalla de cambio obligatorio de contraseña no se rompe al estrenar la cabecera nueva.
+
 ## 2.0.0
 
 ### Diseño

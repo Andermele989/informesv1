@@ -46,41 +46,63 @@ def html(texto: str) -> None:
     st.markdown(" ".join(linea.strip() for linea in texto.splitlines() if linea.strip()), unsafe_allow_html=True)
 
 
-def encabezado(titulo: str, subtitulo: str = "", etiqueta: str = "", insignias: tuple[tuple[str, str], ...] = ()) -> None:
-    """Cabecera de página. `insignias` es una serie de `(icono_texto, valor)`."""
+def icono(nombre: str) -> str:
+    """HTML de un icono Material (la fuente ya la carga Streamlit)."""
+    return f'<i class="mi">{sanitize_text(nombre)}</i>'
+
+
+def encabezado(
+    titulo: str,
+    subtitulo: str = "",
+    insignias: tuple[tuple[str, str], ...] = (),
+    etiqueta: str = "",
+) -> None:
+    """Cabecera de página: título y subtítulo a la izquierda, datos del filtro a la derecha."""
+    lista_chips = list(insignias)
+    if etiqueta:
+        lista_chips.insert(0, ("", etiqueta))
     chips = "".join(
-        f'<span class="chip">{sanitize_text(rotulo)} <b>{sanitize_text(valor)}</b></span>' for rotulo, valor in insignias
+        f'<span class="chip">{"<b>" + sanitize_text(rotulo) + "</b> " if rotulo else ""}{sanitize_text(valor)}</span>'
+        for rotulo, valor in lista_chips
     )
     html(
-        f'''<div class="app-header">
-        {f'<span class="eyebrow">{sanitize_text(etiqueta)}</span>' if etiqueta else ''}
+        f'''<div class="page-head"><div>
         <h1>{sanitize_text(titulo)}</h1>
         {f'<p>{sanitize_text(subtitulo)}</p>' if subtitulo else ''}
-        {f'<div class="chips">{chips}</div>' if chips else ''}
-        </div>'''
+        </div>{f'<div class="chips">{chips}</div>' if chips else ''}</div>'''
     )
 
 
 def titulo_tarjeta(titulo: str, detalle: str = "") -> None:
-    st.markdown(
-        f'<div class="card-title">{sanitize_text(titulo)}'
-        f'{f"<span>{sanitize_text(detalle)}</span>" if detalle else ""}</div>',
-        unsafe_allow_html=True,
+    """Título de una tarjeta con su subtítulo debajo."""
+    html(f'<div class="card-head"><b>{sanitize_text(titulo)}</b>'
+         f'{f"<span>{sanitize_text(detalle)}</span>" if detalle else ""}</div>')
+
+
+def _barras(serie: list[float]) -> str:
+    """Mini gráfico de barras (la última barra, la del periodo actual, resalta)."""
+    if not serie:
+        return ""
+    maximo = max(serie) or 1
+    ultima = len(serie) - 1
+    barras = "".join(
+        '<span{} style="height:{:.0f}%"></span>'.format(' class="on"' if i == ultima else "", max(10, v / maximo * 100))
+        for i, v in enumerate(serie)
     )
+    return f'<div class="spark" aria-hidden="true">{barras}</div>'
 
 
-def tarjeta_metrica(etiqueta: str, valor: str, color: str, pie: str = "", delta: tuple[str, str] = ("", ""),
-                    progreso: float | None = None) -> str:
-    """HTML de una tarjeta de indicador. `color`: mint | sky | violet | amber | rose."""
-    barra = ""
-    if progreso is not None:
-        barra = f'<div class="meter"><span style="width:{max(0, min(100, progreso)):.0f}%"></span></div>'
+def tarjeta_metrica(etiqueta: str, valor: str, color: str, icono_material: str, nota: str = "",
+                    delta: tuple[str, str] = ("", ""), serie: list[float] | None = None) -> str:
+    """HTML de un indicador. `color`: amber | orange | gold | flame. `serie`: valores recientes para las mini-barras."""
     texto_delta, clase_delta = delta
-    chip_delta = f'<span class="delta {clase_delta}">{sanitize_text(texto_delta)}</span>' if texto_delta else ""
+    linea_delta = (f'<span class="kpi-delta"><b class="{clase_delta}">{sanitize_text(texto_delta)}</b> vs mes anterior</span>'
+                   if texto_delta else "")
     return (
-        f'<div class="metric-card tone-{color}"><div class="metric-top"><span class="metric-label">'
-        f'{sanitize_text(etiqueta)}</span>{chip_delta}</div><div class="metric-value">{sanitize_text(valor)}</div>'
-        f'{barra}<div class="metric-foot">{sanitize_text(pie)}</div></div>'
+        f'<div class="kpi tone-{color}"><div class="kpi-label">{sanitize_text(etiqueta)}</div>'
+        f'<div class="kpi-main"><span class="chip-icon">{icono(icono_material)}</span>'
+        f'<span class="kpi-value">{sanitize_text(valor)}</span></div>{_barras(serie or [])}'
+        f'<div class="kpi-foot">{linea_delta}<span class="kpi-note">{sanitize_text(nota)}</span></div></div>'
     )
 
 

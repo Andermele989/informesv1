@@ -6,12 +6,12 @@ import streamlit as st
 from core import auth, models, ui
 from core.database import sesion
 from core.security import limpiar_texto, sanitize_text
-from services import datos
+from services import datos, ia
 
 log = logging.getLogger("informes.edicion")
 
 auth.require_login()
-ui.encabezado("Editar informes", "Busca, corrige o elimina informes registrados previamente", etiqueta="Gestión")
+ui.encabezado("Editar informes", "Busca, corrige o elimina informes registrados previamente")
 
 informes, _ = datos.cargar_datos()
 informes = informes[informes["id"].notna()]
@@ -47,7 +47,8 @@ if actual["privilegio"] not in opciones_priv:
     opciones_priv.append(actual["privilegio"])  # privilegio histórico ya eliminado del catálogo
 
 ui.html(
-    f"""<div class="summary"><div class="card-title">{sanitize_text(publicador)} · {sanitize_text(mes)}</div>
+    f"""<div class="summary"><div class="card-head">
+    <b>{sanitize_text(publicador)} · {sanitize_text(mes)}</b><span>Informe seleccionado</span></div>
     <div class="summary-grid">
     <div><span>Grupo</span><b>{sanitize_text(del_publicador.iloc[0]['Grupo'])}</b></div>
     <div><span>Privilegio</span><b>{sanitize_text(actual['privilegio'])}</b></div>
@@ -66,8 +67,20 @@ with st.container(key="card_edicion"):
     cursos = c2.number_input("Cursos bíblicos", 0, 50, value=int(actual["cursos"]), key=f"edit_cursos_{informe_id}")
     texto = limpiar_texto(st.text_input("Participación / horas registradas", value=actual["informe"], max_chars=200,
                                         key=f"edit_informe_{informe_id}"), 200)
-    notas = limpiar_texto(st.text_area("Notas / observaciones", value=actual["notas"], height=100, max_chars=500,
-                                       key=f"edit_notas_{informe_id}"), 500, multilinea=True)
+    c_lbl_edit, c_ai_edit = st.columns([1.8, 1.2], vertical_alignment="bottom")
+    with c_lbl_edit:
+        st.caption("Notas u observaciones (opcional)")
+    with c_ai_edit, st.popover("Asistente IA", icon=":material/auto_awesome:"):
+        st.caption("Redacta una nota formal. Solo se envía al proveedor de IA la frase corta que escribas aquí: "
+                   "evita diagnósticos y datos personales.")
+        motivo_edit = st.text_input("Detalle a formalizar", placeholder="Ej: viaje, trabajo, horario",
+                                    key=f"ai_motivo_{informe_id}", max_chars=80)
+        if st.button("Aplicar a notas", icon=":material/check:", key=f"btn_ai_edit_{informe_id}", type="primary"):
+            st.session_state[f"edit_notas_{informe_id}"] = ia.sugerir_nota(motivo_edit, privilegio)
+            st.rerun()
+
+    notas = limpiar_texto(st.text_area("Notas / observaciones", value=actual["notas"], height=85, max_chars=500,
+                                       key=f"edit_notas_{informe_id}", label_visibility="collapsed"), 500, multilinea=True)
 
     c_guardar, c_borrar = st.columns([2, 1], vertical_alignment="top")
     if c_guardar.button("Guardar cambios", type="primary", icon=":material/save:", width="stretch", key="edit_guardar"):

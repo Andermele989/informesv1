@@ -3,7 +3,7 @@
 Aplicación web (Streamlit + PostgreSQL) para registrar los informes mensuales de servicio de los
 publicadores de un grupo, consultar indicadores, exportar a Excel/PDF y generar un análisis con IA.
 
-**Versión 2.0.0** · ver [CHANGELOG.md](CHANGELOG.md)
+**Versión 2.1.0** · ver [CHANGELOG.md](CHANGELOG.md)
 
 ## Estructura
 
@@ -69,7 +69,11 @@ una contraseña débil o predeterminada (por ejemplo `admin`), la app obliga a c
 - Con sesión inválida el contenido de las páginas ni se ejecuta; las páginas de administración solo se registran para administradores.
 - El rol y el estado del usuario se revalidan contra la base cada 30 segundos (una cuenta desactivada pierde el acceso casi al instante).
 - Todo texto incrustado en HTML se escapa; los textos del usuario se limpian y limitan; el Excel neutraliza fórmulas (`=...`).
-- Las notas de los informes nunca se envían a la IA; los errores de proveedores no se muestran al usuario.
+- El análisis del dashboard nunca envía las notas de los informes. El asistente de notas solo envía a la IA la frase corta
+  (máx. 80 caracteres) que el usuario escribe en él, con aviso en pantalla; los errores de los proveedores no se muestran.
+- Los usuarios son únicos sin importar mayúsculas y la base de datos impone integridad (campos obligatorios, roles válidos,
+  cursos no negativos, un informe por publicador y mes). Si al arrancar hay datos que lo impiden, la app no inicia y el
+  registro del servidor indica qué corregir (`python -m scripts.audit` muestra el detalle).
 - Streamlit sin trazas de error ni menú de desarrollo (`.streamlit/config.toml`); XSRF activado.
 - Eliminar publicadores, grupos o informes requiere confirmación y rol de administrador.
 
@@ -81,7 +85,7 @@ Gestión de usuarios y recuperación de acceso desde la terminal: `python -m scr
 pip install -r requirements-dev.txt
 python -m pytest          # pruebas (usan SQLite temporal; no tocan tu base ni llaman a la IA)
 python -m ruff check .    # análisis estático
-python -m scripts.audit   # revisa tu base de datos y configuración real (solo lectura)
+python -m scripts.audit   # auditoría de tu base de datos y configuración real (solo lectura)
 ```
 
 La integración continua (`.github/workflows/ci.yml`) ejecuta ambas en cada push y pull request.
