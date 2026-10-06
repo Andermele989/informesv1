@@ -1,8 +1,8 @@
 name: CI
 
+# Corre en cada push (cualquier rama) y en los pull requests, para validar antes de fusionar.
 on:
   push:
-    branches: [main]
   pull_request:
 
 jobs:
