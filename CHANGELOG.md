@@ -1,5 +1,17 @@
 # Cambios
 
+## 2.1.1
+
+### Corrección: la app no arrancaba con una base de datos antigua (Render)
+- Con la 2.1.0, una base creada por versiones anteriores (informes sin publicador, usuarios sin rol, columnas
+  que faltan…) hacía que el arranque se detuviera con «No se pudo preparar la base de datos».
+- Ahora el arranque **nunca se detiene por datos antiguos**: añade las columnas que falten, rellena vacíos con el
+  valor normal, vincula por nombre los informes antiguos sin publicador (solo si no crea duplicados) y crea los
+  índices y restricciones que los datos permitan. Lo demás se conserva y se registra como advertencia.
+- Los publicadores con estado vacío (columna añadida a mano años atrás) ya cuentan como activos.
+- Mensajes de error distintos para «no hay conexión» y «error al preparar», que apuntan al registro del servidor.
+- Guía de despliegue en Render (comandos, variables, comprobación de salud y diagnóstico) y `render.yaml` de referencia.
+
 ## 2.1.0
 
 ### Diseño

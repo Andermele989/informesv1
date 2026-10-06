@@ -7,6 +7,7 @@ débil o predeterminada solo se permite cambiarla.
 import logging
 
 import streamlit as st
+from sqlalchemy.exc import OperationalError
 
 st.set_page_config(page_title="Sistema de Informes", page_icon="📋", layout="wide")
 
@@ -17,10 +18,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 
 try:
     preparar_base_de_datos()
+except OperationalError:
+    logging.getLogger("informes").exception("ARRANQUE FALLIDO: no hay conexión con la base de datos")
+    st.error("No se pudo conectar a la base de datos. Comprueba la variable `DATABASE_URL` (o `DB_*` en local) y que el "
+             "servicio de PostgreSQL esté activo. El detalle está en el registro del servidor.")
+    st.stop()
 except Exception:
-    logging.getLogger("informes").exception("No se pudo preparar la base de datos")
-    st.error("No se pudo preparar la base de datos: revisa la conexión en `.env` o los datos señalados en el "
-             "registro del servidor. `python -m scripts.audit` muestra el detalle.")
+    logging.getLogger("informes").exception("ARRANQUE FALLIDO: error al preparar la base de datos")
+    st.error("No se pudo preparar la base de datos. El registro del servidor indica la causa; "
+             "`python -m scripts.audit` revisa el estado de la base.")
     st.stop()
 
 ui.inyectar_estilos()

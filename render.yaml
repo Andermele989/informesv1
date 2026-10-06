@@ -1,0 +1,23 @@
+# Referencia para crear el servicio en Render como Blueprint (opcional: también se puede configurar en el panel).
+services:
+  - type: web
+    name: sistema-informes
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run main.py --server.port $PORT --server.address 0.0.0.0
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false            # pega la Internal Database URL de tu PostgreSQL
+      - key: SECRET_KEY
+        generateValue: true    # Render genera una clave aleatoria larga
+      - key: ADMIN_INITIAL_PASSWORD
+        sync: false            # opcional
+      - key: GEMINI_API_KEY
+        sync: false            # opcional (análisis con IA)
+      - key: GEMINI_MODEL
+        value: gemini-3.6-flash
+      - key: OPENAI_API_KEY
+        sync: false            # opcional
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini

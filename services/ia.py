@@ -169,7 +169,8 @@ def generar_analisis(motor: str, prompt: str) -> tuple[str, str]:
         raise
     except Exception as exc:  # no se muestra el detalle del proveedor al usuario
         log.exception("Error al llamar a %s", motor)
-        raise ErrorIA(f"No se pudo generar el análisis con {motor}. Inténtalo de nuevo en un momento.") from exc
+        raise ErrorIA(f"No se pudo generar el análisis con {motor}. Revisa que la clave y el modelo configurados "
+                      "sean correctos o inténtalo de nuevo en un momento.") from exc
     if not texto.strip():
         raise ErrorIA(f"{motor} devolvió una respuesta vacía. Inténtalo de nuevo.")
     return texto.strip(), modelo

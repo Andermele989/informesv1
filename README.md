@@ -3,7 +3,7 @@
 Aplicación web (Streamlit + PostgreSQL) para registrar los informes mensuales de servicio de los
 publicadores de un grupo, consultar indicadores, exportar a Excel/PDF y generar un análisis con IA.
 
-**Versión 2.1.0** · ver [CHANGELOG.md](CHANGELOG.md)
+**Versión 2.1.1** · ver [CHANGELOG.md](CHANGELOG.md)
 
 ## Estructura
 
@@ -90,11 +90,42 @@ python -m scripts.audit   # auditoría de tu base de datos y configuración real
 
 La integración continua (`.github/workflows/ci.yml`) ejecuta ambas en cada push y pull request.
 
-## Despliegue (Render u otro servidor)
+## Despliegue en Render (u otro servidor)
 
-- Comando de inicio: `streamlit run main.py --server.port $PORT --server.address 0.0.0.0`
-- Variables de entorno: `DATABASE_URL`, `SECRET_KEY` y, si usas IA, las claves correspondientes.
-- Sirve la app por HTTPS: la cookie de sesión se marca `Secure` automáticamente cuando detecta HTTPS.
+| Ajuste | Valor |
+|---|---|
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `streamlit run main.py --server.port $PORT --server.address 0.0.0.0` |
+| Health Check Path | `/_stcore/health` |
+| Python | 3.12 o superior (en Render: variable `PYTHON_VERSION`, p. ej. `3.13.5`) |
+
+Variables de entorno (en Render no existe el `.env`: se definen en *Environment*):
+
+| Variable | Valor |
+|---|---|
+| `DATABASE_URL` | La *Internal Database URL* de tu PostgreSQL de Render (acepta `postgres://` y `postgresql://`) |
+| `SECRET_KEY` | Clave aleatoria de 32+ caracteres (puedes dejar que Render la genere). Si falta, las sesiones se pierden al reiniciar |
+| `ADMIN_INITIAL_PASSWORD` | Opcional: contraseña de `admin` solo si aún no existe |
+| `GEMINI_API_KEY`, `GEMINI_MODEL`, `OPENAI_API_KEY`, `OPENAI_MODEL` | Solo si usas el análisis con IA |
+
+La app sirve por HTTPS y la cookie de sesión se marca `Secure` sola. El archivo `render.yaml` es una referencia
+con estos mismos ajustes por si prefieres crear el servicio como *Blueprint*.
+
+### Bases de datos antiguas
+
+Al arrancar, la app pone al día sola una base creada con versiones anteriores: añade las columnas que falten,
+rellena vacíos con el valor normal (publicadores sin estado pasan a activos, usuarios sin rol a `user`, cursos
+vacíos a 0), vincula por nombre los informes antiguos que no tenían publicador y crea los índices. **Nunca borra datos
+y nunca impide el arranque por datos antiguos**: lo que no se pueda arreglar sin adivinar se deja tal cual y se
+registra una advertencia.
+
+### Si ves «No se pudo conectar…» o «No se pudo preparar la base de datos»
+
+1. Abre **Logs** del servicio en Render y busca `ARRANQUE FALLIDO`: la línea siguiente da la causa exacta.
+2. «No se pudo conectar»: revisa `DATABASE_URL` (usa la *Internal* si el servicio y la base están en la misma
+   región), que la base esté activa y que no esté vacía la variable.
+3. Otro motivo: abre la *Shell* del servicio y ejecuta `python -m scripts.audit` para ver el estado de la base.
+4. Las líneas `WARNING informes.arranque` no son errores: indican qué se reparó o qué quedó pendiente de revisar.
 
 ## Flujo de trabajo con Git
 
