@@ -14,14 +14,14 @@ import streamlit as st
 from core import models
 from core.database import sesion
 from core.security import (
-    hash_password, huella_password, make_session_token, read_session_token,
+    SESSION_TTL_SECONDS, hash_password, huella_password, make_session_token, read_session_token,
     validar_password, verify_password, verificar_senuelo,
 )
 
 log = logging.getLogger("informes.auth")
 
 COOKIE_NAME = "informes_session"
-COOKIE_MAX_AGE = 7 * 24 * 3600
+COOKIE_MAX_AGE = SESSION_TTL_SECONDS  # misma duración que el token firmado
 _COOKIE_PENDIENTE = "_cookie_pendiente"
 
 MAX_INTENTOS = 5

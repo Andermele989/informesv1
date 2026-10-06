@@ -11,7 +11,7 @@
 
 ### Seguridad
 - Bloqueo por intentos fallidos, mensajes de error que no revelan usuarios y verificación en tiempo constante.
-- Cookie de sesión firmada sin usuario ni rol, invalidada al cambiar la contraseña; revalidación del usuario en cada ejecución.
+- Cookie de sesión firmada sin usuario ni rol, invalidada al cambiar la contraseña; revalidación del usuario cada 30 segundos.
 - Política de contraseñas, cambio de contraseña desde "Mi cuenta" y cambio obligatorio si es débil o predeterminada.
 - La cuenta `admin` ya no se crea con la contraseña `admin`: se usa `ADMIN_INITIAL_PASSWORD` o una clave aleatoria.
 - Páginas de administración solo para administradores; borrar informes solo para administradores; confirmación al eliminar.

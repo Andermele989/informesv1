@@ -67,7 +67,7 @@ una contraseña débil o predeterminada (por ejemplo `admin`), la app obliga a c
 - Bloqueo temporal de la cuenta tras 5 intentos fallidos (tabla `login_attempts`); el mensaje de error no revela si el usuario existe.
 - Sesión por cookie firmada con HMAC que **no contiene usuario ni rol** y deja de valer al cambiar la contraseña.
 - Con sesión inválida el contenido de las páginas ni se ejecuta; las páginas de administración solo se registran para administradores.
-- El rol y el estado del usuario se revalidan en cada ejecución.
+- El rol y el estado del usuario se revalidan contra la base cada 30 segundos (una cuenta desactivada pierde el acceso casi al instante).
 - Todo texto incrustado en HTML se escapa; los textos del usuario se limpian y limitan; el Excel neutraliza fórmulas (`=...`).
 - Las notas de los informes nunca se envían a la IA; los errores de proveedores no se muestran al usuario.
 - Streamlit sin trazas de error ni menú de desarrollo (`.streamlit/config.toml`); XSRF activado.

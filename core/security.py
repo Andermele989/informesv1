@@ -18,7 +18,16 @@ log = logging.getLogger("informes.security")
 BCRYPT_ROUNDS = 12
 PASSWORD_MIN = 8
 PASSWORD_MAX_BYTES = 72  # límite real de bcrypt
-SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_DAYS", "7") or 7) * 24 * 3600
+
+
+def _dias_de_sesion() -> int:
+    try:
+        return max(1, int(os.getenv("SESSION_TTL_DAYS", "7")))
+    except ValueError:  # valor no numérico en el .env: se usa el predeterminado en vez de romper el arranque
+        return 7
+
+
+SESSION_TTL_SECONDS = _dias_de_sesion() * 24 * 3600
 
 _PASSWORDS_COMUNES = frozenset({
     "admin", "administrador", "password", "password1", "contraseña", "contrasena", "informes",
