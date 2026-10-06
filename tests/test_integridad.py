@@ -3,6 +3,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from core import models
+from core.arranque import _crear_admin_si_falta
 from core.database import sesion
 from core.security import hash_password
 
@@ -34,7 +35,6 @@ def test_informe_no_admite_duplicado_por_publicador_y_mes(bd):
 
 
 def test_informe_rechaza_cursos_negativos(bd):
-    ids = {}
     with sesion() as db:
         user = models.User(username="beto", password_hash=hash_password("Clave-Segura-2026"))
         publisher = models.Publisher(name="Beto")
@@ -47,3 +47,14 @@ def test_informe_rechaza_cursos_negativos(bd):
             user_id=ids["user"], publisher_id=ids["publisher"], month="2026-10", bible_courses=-1
         ))
         db.commit()
+
+
+def test_no_intenta_recrear_admin_si_existe_con_mayusculas(bd):
+    with sesion() as db:
+        db.add(models.User(username="Admin", password_hash=hash_password("Clave-Segura-2026"), role="admin"))
+        db.commit()
+
+    _crear_admin_si_falta()
+
+    with sesion() as db:
+        assert db.query(models.User).count() == 1

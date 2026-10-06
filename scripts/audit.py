@@ -20,6 +20,7 @@ INDICES_REQUERIDOS = {
     "ix_publishers_group_id",
     "ix_publishers_is_inactive",
     "uq_report_publisher_month",
+    "uq_users_username_lower",
 }
 
 
@@ -95,6 +96,33 @@ def auditar_integridad() -> int:
         huerfanos = db.query(models.MonthlyReport).filter(models.MonthlyReport.publisher_id.is_(None)).count()
         fallos += not _check(huerfanos == 0, "Asignación de publicador en informes",
                              f"{huerfanos} informes sin publicador asignado")
+
+        informes_incompletos = db.query(models.MonthlyReport).filter(
+            (models.MonthlyReport.user_id.is_(None))
+            | (models.MonthlyReport.month.is_(None))
+            | (models.MonthlyReport.bible_courses.is_(None))
+            | (models.MonthlyReport.bible_courses < 0)
+        ).count()
+        fallos += not _check(
+            informes_incompletos == 0,
+            "Campos obligatorios y cursos válidos en informes",
+            f"{informes_incompletos} informes incompletos o con cursos negativos",
+        )
+
+        usuarios_duplicados = db.execute(text("""
+            SELECT lower(username) FROM users
+            GROUP BY lower(username) HAVING count(*) > 1
+        """)).fetchall()
+        fallos += not _check(
+            not usuarios_duplicados,
+            "Unicidad de usuarios sin distinguir mayúsculas",
+            f"{len(usuarios_duplicados)} nombres de usuario duplicados",
+        )
+
+        roles_invalidos = db.query(models.User).filter(
+            (models.User.role.is_(None)) | (~models.User.role.in_(("admin", "user")))
+        ).count()
+        fallos += not _check(roles_invalidos == 0, "Roles de usuario válidos", f"{roles_invalidos} roles inválidos")
 
         grupos_huerfanos = db.query(models.Publisher).filter(
             models.Publisher.group_id.isnot(None),

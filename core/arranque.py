@@ -3,7 +3,7 @@ import logging
 import os
 
 import streamlit as st
-from sqlalchemy import text
+from sqlalchemy import func, text
 
 from core import models
 from core.database import Base, engine, sesion
@@ -107,7 +107,9 @@ def _migrar() -> None:
 def _crear_admin_si_falta() -> None:
     """Crea `admin` en la primera ejecución con `ADMIN_INITIAL_PASSWORD` o una clave aleatoria."""
     with sesion() as db:
-        if db.query(models.User).filter(models.User.username == "admin").first():
+        # La restricción de usuarios es insensible a mayúsculas: no intentar crear
+        # "admin" si ya existe, por ejemplo, "Admin" en una base histórica.
+        if db.query(models.User).filter(func.lower(models.User.username) == "admin").first():
             return
         password = os.getenv("ADMIN_INITIAL_PASSWORD") or generar_password(16)
         db.add(models.User(username="admin", password_hash=hash_password(password), role="admin"))
