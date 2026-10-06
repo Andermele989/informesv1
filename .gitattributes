@@ -1,0 +1,6 @@
+# Normaliza los saltos de línea para que Windows y Linux no generen diferencias falsas.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.xlsx binary
+*.pdf binary
