@@ -9,24 +9,34 @@ import logging
 import streamlit as st
 from sqlalchemy.exc import OperationalError
 
+from core.errores import ErrorDeConfiguracion
+
 st.set_page_config(page_title="Sistema de Informes", page_icon="📋", layout="wide")
 
-from core import auth, formularios, ui
-from core.arranque import preparar_base_de_datos
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("informes")
+
+try:
+    from core import auth, database, diagnostico, formularios, ui
+    from core.arranque import preparar_base_de_datos
+except ErrorDeConfiguracion as error:  # p. ej. DATABASE_URL mal escrita: el mensaje es seguro de mostrar
+    log.error("ARRANQUE FALLIDO: configuración inválida: %s", error)
+    st.error(f"Configuración inválida. {error}")
+    st.stop()
 
 try:
     preparar_base_de_datos()
-except OperationalError:
-    logging.getLogger("informes").exception("ARRANQUE FALLIDO: no hay conexión con la base de datos")
-    st.error("No se pudo conectar a la base de datos. Comprueba la variable `DATABASE_URL` (o `DB_*` en local) y que el "
-             "servicio de PostgreSQL esté activo. El detalle está en el registro del servidor.")
+except (OperationalError, UnicodeDecodeError) as error:
+    log.exception("ARRANQUE FALLIDO: sin conexión con la base de datos (%s)", database.describir_destino())
+    st.error("No se pudo conectar a la base de datos.")
+    st.warning(diagnostico.causa_de_conexion(error))
+    st.caption(f"Configuración leída de: {database.origen_conexion()}. El detalle exacto está en el registro del servidor "
+               "(busca «ARRANQUE FALLIDO»).")
     st.stop()
 except Exception:
-    logging.getLogger("informes").exception("ARRANQUE FALLIDO: error al preparar la base de datos")
-    st.error("No se pudo preparar la base de datos. El registro del servidor indica la causa; "
-             "`python -m scripts.audit` revisa el estado de la base.")
+    log.exception("ARRANQUE FALLIDO: error al preparar la base de datos")
+    st.error("No se pudo preparar la base de datos. El registro del servidor indica la causa "
+             "(busca «ARRANQUE FALLIDO»); `python -m scripts.audit` revisa el estado de la base.")
     st.stop()
 
 ui.inyectar_estilos()

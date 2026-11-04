@@ -1,5 +1,15 @@
 # Cambios
 
+## 2.1.2
+
+### Diagnóstico de la conexión a la base de datos
+- Cuando no hay conexión, la pantalla explica la causa probable (sin mostrar usuario, clave ni servidor): `DATABASE_URL`
+  ausente, usuario o clave incorrectos, base inexistente, servidor que no resuelve, base suspendida o caducada, SSL, tiempo
+  agotado o límite de conexiones. El detalle completo queda en el registro del servidor (`ARRANQUE FALLIDO`).
+- `DATABASE_URL` se limpia al leerla: espacios, saltos de línea, comillas y el prefijo `DATABASE_URL=` pegados por error.
+- Un `DB_PORT` vacío o una URL mal escrita ya no rompen la app: muestran un mensaje de configuración claro.
+- Tiempo máximo de 10 s al conectar: una base caída falla rápido en vez de dejar la página colgada.
+
 ## 2.1.1
 
 ### Corrección: la app no arrancaba con una base de datos antigua (Render)

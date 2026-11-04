@@ -3,7 +3,7 @@
 Aplicación web (Streamlit + PostgreSQL) para registrar los informes mensuales de servicio de los
 publicadores de un grupo, consultar indicadores, exportar a Excel/PDF y generar un análisis con IA.
 
-**Versión 2.1.1** · ver [CHANGELOG.md](CHANGELOG.md)
+**Versión 2.1.2** · ver [CHANGELOG.md](CHANGELOG.md)
 
 ## Estructura
 
@@ -119,13 +119,23 @@ vacíos a 0), vincula por nombre los informes antiguos que no tenían publicador
 y nunca impide el arranque por datos antiguos**: lo que no se pueda arreglar sin adivinar se deja tal cual y se
 registra una advertencia.
 
-### Si ves «No se pudo conectar…» o «No se pudo preparar la base de datos»
+### Si ves «No se pudo conectar a la base de datos»
 
-1. Abre **Logs** del servicio en Render y busca `ARRANQUE FALLIDO`: la línea siguiente da la causa exacta.
-2. «No se pudo conectar»: revisa `DATABASE_URL` (usa la *Internal* si el servicio y la base están en la misma
-   región), que la base esté activa y que no esté vacía la variable.
-3. Otro motivo: abre la *Shell* del servicio y ejecuta `python -m scripts.audit` para ver el estado de la base.
-4. Las líneas `WARNING informes.arranque` no son errores: indican qué se reparó o qué quedó pendiente de revisar.
+La propia pantalla explica la causa probable (sin mostrar usuario, clave ni servidor) y dice de dónde leyó la
+configuración. El detalle exacto está en **Logs** del servicio de Render, en la línea `ARRANQUE FALLIDO`.
+
+| La pantalla dice… | Qué hacer |
+|---|---|
+| «DATABASE_URL no está definida…» | En el servicio web → *Environment* → añade `DATABASE_URL` con la *Internal Database URL* de tu PostgreSQL |
+| «El servidor cerró la conexión… caducó, suspendida o eliminada» | En Render, abre tu base de datos y mira su estado: **las bases PostgreSQL gratuitas caducan** (hay que pasarlas a un plan de pago o crear otra y restaurar los datos). Copia su URL actual |
+| «El usuario o la contraseña no son correctos» | Copia de nuevo la URL desde el panel de la base |
+| «El nombre del servidor no se encuentra» | La *Internal URL* solo funciona si la base y el servicio están en la misma región y cuenta; si no, usa la *External URL* |
+| «El servidor exige conexión segura» | Añade `?sslmode=require` al final de la URL |
+| «La variable DATABASE_URL no tiene un formato válido» | Debe verse así: `postgresql://usuario:contraseña@servidor:5432/base` |
+
+La app limpia sola los espacios, saltos de línea y comillas que sobran al pegar la URL, y acepta `postgres://` o
+`postgresql://`. Para revisar el estado de la base desde la *Shell* del servicio: `python -m scripts.audit`.
+Las líneas `WARNING informes.arranque` no son errores: indican qué se reparó o qué quedó pendiente.
 
 ## Flujo de trabajo con Git
 
